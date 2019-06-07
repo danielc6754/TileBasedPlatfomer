@@ -71,8 +71,7 @@ http://www.twitch.tv/javidx9
 
 #ifndef UNICODE
 #error Please enable UNICODE for your compiler! VS: Project Properties -> General -> \
-Character Set -> Use Unicode. In Code::Blocks, include 'UNICODE' and '_UNICODE' as \
-pre-processor directives. Thanks! - Javidx9
+Character Set -> Use Unicode. Thanks! - Javidx9
 #endif
 
 #include <iostream>
@@ -165,28 +164,28 @@ private:
 
 public:
 	void SetGlyph(int x, int y, wchar_t c) {
-		if (x < 0 || x > nWidth || y < 0 || y > nHeight)
+		if (x < 0 || x >= nWidth || y < 0 || y >= nHeight)
 			return;
 		else
 			m_Glyphs[y * nWidth + x] = c;
 	}
 
 	void SetColour(int x, int y, short c) {
-		if (x < 0 || x > nWidth || y < 0 || y > nHeight)
+		if (x < 0 || x >= nWidth || y < 0 || y >= nHeight)
 			return;
 		else
 			m_Colours[y * nWidth + x] = c;
 	}
 
 	wchar_t GetGlyphs(int x, int y) {
-		if (x < 0 || x > nWidth || y < 0 || y > nHeight)
+		if (x < 0 || x >= nWidth || y < 0 || y >= nHeight)
 			return L' ';
 		else
 			return m_Glyphs[y * nWidth + x];
 	}
 
 	wchar_t GetColour(int x, int y) {
-		if (x < 0 || x > nWidth || y < 0 || y > nHeight)
+		if (x < 0 || x >= nWidth || y < 0 || y >= nHeight)
 			return FG_BLACK;
 		else
 			return m_Colours[y * nWidth + x];
@@ -243,8 +242,6 @@ public:
 		m_hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 		m_hConsoleIn = GetStdHandle(STD_INPUT_HANDLE);
 
-		m_keyNewState = new short[256];
-		m_keyOldState = new short[256];
 		memset(m_keyNewState, 0, 256 * sizeof(short));
 		memset(m_keyOldState, 0, 256 * sizeof(short));
 		memset(m_keys, 0, 256 * sizeof(sKeyState));
@@ -254,55 +251,6 @@ public:
 
 		m_sAppName = L"Default";
 	}
-
-	// Update 14/09/2017 - Below is the original implementation of CreateConsole(). This works
-	// on many, but not all systems. A revised version is used below. This will be removed 
-	// once it is established the revision is stable. Jx9
-
-	/*int ConstructConsole(int width, int height, int fontw = 12, int fonth = 12) {
-		m_nScreenWidth = width;
-		m_nScreenHeight = height;
-
-		CONSOLE_FONT_INFOEX cfi;
-		cfi.cbSize = sizeof(cfi);
-		// Index of font in console font table
-		cfi.nFont = 0;
-		// contains width and height of each character in font (X is width, Y is height). Coord structure
-		cfi.dwFontSize.X = fontw;
-		cfi.dwFontSize.Y = fonth;
-		// Font pitch and family more info in TEXTMETRIC struct
-		cfi.FontFamily = FF_DONTCARE;
-		// The thickness of fonts (400 is normal, 700 is bold)
-		cfi.FontWeight = FW_NORMAL;
-		// Name of typeface
-		wcscpy_s(cfi.FaceName, L"Consoles");
-
-		// Sets extended information about the current console font
-		if (!SetCurrentConsoleFontEx(m_hConsole, false, &cfi))
-			return Error(L"SetCurrentConsoleFontEx");
-
-		COORD coordLargest = GetLargestConsoleWindowSize(m_hConsole);
-		if (m_nScreenHeight > coordLargest.Y)
-			return Error(L"Game Height Too Large");
-		if (m_nScreenWidth > coordLargest.X)
-			return Error(L"Game Width Too Large");
-
-		COORD buffer = { (short)m_nScreenWidth, (short)m_nScreenHeight };
-		if (!SetConsoleScreenBufferSize(m_hConsole, buffer))
-			return Error(L"SetConsoleScreenBufferSize");
-
-		m_rectWindow = { 0, 0, (short)m_nScreenWidth - 1, (short)m_nScreenHeight - 1 };
-		if (!SetConsoleWindowInfo(m_hConsole, TRUE, &m_rectWindow))
-			return Error(L"SetConsoleWindowInfo");
-
-		// Set flags to allow mouse input // Enable Extended Flags disables mouse input consuming
-		if (!SetConsoleMode(m_hConsoleIn, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT))
-			return Error(L"SetConsoleMode");
-
-		m_bufScreen = new CHAR_INFO[m_nScreenWidth * m_nScreenHeight];
-
-		return 1;
-	}*/
 
 	int ConstructConsole(int width, int height, int fontw, int fonth) {
 		if (m_hConsole == INVALID_HANDLE_VALUE)
@@ -331,13 +279,13 @@ public:
 		// Set the size of the screen buffer
 		COORD coord = { (short)m_nScreenWidth, (short)m_nScreenHeight };
 		if (!SetConsoleScreenBufferSize(m_hConsole, coord))
-			return Error(L"SetConsoleScreenBufferSize");
+			Error(L"SetConsoleScreenBufferSize");
 
 		// Assign screen buffer to the console
 		if (!SetConsoleActiveScreenBuffer(m_hConsole))
 			return Error(L"SetConsoleActiveScreenBuffer");
 
-		// Set the font size now that screen buffer has been assigned to the console
+		// Set the font size now that the screen buffer has been assigned to the console
 		CONSOLE_FONT_INFOEX cfi;
 		cfi.cbSize = sizeof(cfi);
 		cfi.nFont = 0;
@@ -345,26 +293,27 @@ public:
 		cfi.dwFontSize.Y = fonth;
 		cfi.FontFamily = FF_DONTCARE;
 		cfi.FontWeight = FW_NORMAL;
+		//wcscpy_s(cfi.FaceName, L"Liberation Mono");
 		wcscpy_s(cfi.FaceName, L"Consolas");
 		if (!SetCurrentConsoleFontEx(m_hConsole, false, &cfi))
 			return Error(L"SetCurrentConsoleFontEx");
 
-		// Get screen buffer info and check maximum allowed window size. Return
+		// Get screen buffer info and check the maximum allowed window size. Return
 		// error if exceeded, so user knows their dimensions/fontsize are too large
 		CONSOLE_SCREEN_BUFFER_INFO csbi;
 		if (!GetConsoleScreenBufferInfo(m_hConsole, &csbi))
 			return Error(L"GetConsoleScreenBufferInfo");
 		if (m_nScreenHeight > csbi.dwMaximumWindowSize.Y)
-			return Error(L"Screen Height / Font Height Too Large");
+			return Error(L"Screen Height / Font Height Too Big");
 		if (m_nScreenWidth > csbi.dwMaximumWindowSize.X)
-			return Error(L"Screen Width / Font Width Too Large");
+			return Error(L"Screen Width / Font Width Too Big");
 
 		// Set Physical Console Window Size
 		m_rectWindow = { 0, 0, (short)m_nScreenWidth - 1, (short)m_nScreenHeight - 1 };
 		if (!SetConsoleWindowInfo(m_hConsole, TRUE, &m_rectWindow))
 			return Error(L"SetConsoleWindowInfo");
 
-		// Set flags to allow mouse input
+		// Set flags to allow mouse input		
 		if (!SetConsoleMode(m_hConsoleIn, ENABLE_EXTENDED_FLAGS | ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT))
 			return Error(L"SetConsoleMode");
 
@@ -555,10 +504,6 @@ public:
 		thread t = thread(&ConsoleTemplateEngine::GameThread, this);
 
 		// Wait for thread to exit
-		unique_lock<mutex> m_muxLock(m_muxGame);
-		m_cvGameFinished.wait(m_muxLock);
-
-		// Tidy up
 		t.join();
 	}
 
@@ -578,99 +523,116 @@ private:
 		auto tp1 = chrono::system_clock::now();
 		auto tp2 = chrono::system_clock::now();
 
-		// Run fast as possible
 		while (m_bAtomActive) {
-			// Handle Timing
-			tp2 = chrono::system_clock::now();
-			chrono::duration<float> elapsedTime = tp2 - tp1;
-			tp1 = tp2;
-			float fElapsedTime = elapsedTime.count();
+			// Run fast as possible
+			while (m_bAtomActive) {
+				// Handle Timing
+				tp2 = chrono::system_clock::now();
+				chrono::duration<float> elapsedTime = tp2 - tp1;
+				tp1 = tp2;
+				float fElapsedTime = elapsedTime.count();
 
-			// Handle Keyboard Input
-			for (int i = 0; i < 256; i++) {
-				m_keyNewState[i] = GetAsyncKeyState(i);
+				// Handle Keyboard Input
+				for (int i = 0; i < 256; i++) {
+					m_keyNewState[i] = GetAsyncKeyState(i);
 
-				m_keys[i].bPressed = false;
-				m_keys[i].bReleased = false;
+					m_keys[i].bPressed = false;
+					m_keys[i].bReleased = false;
 
-				if (m_keyNewState[i] != m_keyOldState[i]) {
-					if (m_keyNewState[i] & 0x8000) {
-						m_keys[i].bPressed = !m_keys[i].bHeld;
-						m_keys[i].bHeld = true;
+					if (m_keyNewState[i] != m_keyOldState[i]) {
+						if (m_keyNewState[i] & 0x8000) {
+							m_keys[i].bPressed = !m_keys[i].bHeld;
+							m_keys[i].bHeld = true;
+						}
+
+						else {
+							m_keys[i].bReleased = true;
+							m_keys[i].bHeld = false;
+						}
 					}
 
-					else {
-						m_keys[i].bReleased = true;
-						m_keys[i].bHeld = false;
-					}
+					m_keyOldState[i] = m_keyNewState[i];
 				}
 
-				m_keyOldState[i] = m_keyNewState[i];
-			}
 
+				// Handle Mouse Input - Check for window events
+				INPUT_RECORD inBuf[32];
+				DWORD events = 0;
+				GetNumberOfConsoleInputEvents(m_hConsoleIn, &events);
+				if (events > 0)
+					ReadConsoleInput(m_hConsoleIn, inBuf, events, &events); // Blocking
 
-			// Handle Mouse Input - Check for window events
-			INPUT_RECORD inBuf[32];
-			DWORD events = 0;
-			GetNumberOfConsoleInputEvents(m_hConsoleIn, &events);
-			if (events > 0)
-				ReadConsoleInput(m_hConsoleIn, inBuf, events, &events); // Blocking
-
-			// Handle events - we only care about mouse clicks and movement for this update // We dont have an event based system, so being emulated to appear like it in background
-			for (DWORD i = 0; i < events; i++) {
-				switch (inBuf[i].EventType) {
-				case MOUSE_EVENT:
-					switch (inBuf[i].Event.MouseEvent.dwEventFlags) {
-					case MOUSE_MOVED:
-						m_mousePosX = inBuf[i].Event.MouseEvent.dwMousePosition.X;
-						m_mousePosY = inBuf[i].Event.MouseEvent.dwMousePosition.Y;
-						break;
-					case 0:
-						for (int m = 0; m < 5; m++) {
-							m_mouseNewState[m] = (inBuf[i].Event.MouseEvent.dwButtonState & (1 << m)) > 0;
+				// Handle events - we only care about mouse clicks and movement // for now
+				for (DWORD i = 0; i < events; i++) {
+					switch (inBuf[i].EventType) {
+					case FOCUS_EVENT: {
+						m_bConsoleInFocus = inBuf[i].Event.FocusEvent.bSetFocus;
 						}
 						break;
+
+					case MOUSE_EVENT:
+						switch (inBuf[i].Event.MouseEvent.dwEventFlags) {
+						case MOUSE_MOVED: {
+							m_mousePosX = inBuf[i].Event.MouseEvent.dwMousePosition.X;
+							m_mousePosY = inBuf[i].Event.MouseEvent.dwMousePosition.Y;
+							}
+							break;
+						case 0: {
+							for (int m = 0; m < 5; m++)
+								m_mouseNewState[m] = (inBuf[i].Event.MouseEvent.dwButtonState & (1 << m)) > 0;
+							}
+							break;
+						default:
+							break;
+						}
+						break;
+
 					default:
 						break;
-					}
-					break;
-
-				default:
-					break;
-					//Dont care at the moment
-				}
-			}
-
-			for (int m = 0; m < 5; m++) {
-				m_mouse[m].bPressed = false;
-				m_mouse[m].bReleased = false;
-
-				if (m_mouseNewState[m] != m_mouseOldState[m]) {
-					if (m_mouseNewState[m]) {
-						m_mouse[m].bPressed = true;
-						m_mouse[m].bHeld = true;
-					}
-					else {
-						m_mouse[m].bReleased = true;
-						m_mouse[m].bHeld = false;
+						//Dont care at the moment
 					}
 				}
 
-				m_mouseOldState[m] = m_mouseNewState[m];
+				for (int m = 0; m < 5; m++) {
+					m_mouse[m].bPressed = false;
+					m_mouse[m].bReleased = false;
+
+					if (m_mouseNewState[m] != m_mouseOldState[m]) {
+						if (m_mouseNewState[m]) {
+							m_mouse[m].bPressed = true;
+							m_mouse[m].bHeld = true;
+						}
+						else {
+							m_mouse[m].bReleased = true;
+							m_mouse[m].bHeld = false;
+						}
+					}
+
+					m_mouseOldState[m] = m_mouseNewState[m];
+				}
+
+				// Handle Frame Update
+				if (!OnUserUpdate(fElapsedTime))
+					m_bAtomActive = false;
+
+				// Update Title & Present Screen Buffer
+				wchar_t s[256];
+				swprintf_s(s, 256, L"OneLoneCoder.com - Console Game Engine - %s - FPS: %3.2f - %d ", m_sAppName.c_str(), 1.0f / fElapsedTime, events);
+				SetConsoleTitle(s);
+				WriteConsoleOutput(m_hConsole, m_bufScreen, { (short)m_nScreenWidth, (short)m_nScreenHeight }, { 0,0 }, &m_rectWindow);
 			}
 
-			// Handle Frame Update
-			if (!OnUserUpdate(fElapsedTime))
-				m_bAtomActive = false;
-
-			// Update Title & Present Screen Buffer
-			wchar_t s[128];
-			swprintf_s(s, 128, L"OneLoneCoder.com - Console Game Engine - %s - FPS: %3.2f - %d ", m_sAppName.c_str(), 1.0f / fElapsedTime, events);
-			SetConsoleTitle(s);
-			WriteConsoleOutput(m_hConsole, m_bufScreen, { (short)m_nScreenWidth, (short)m_nScreenHeight }, { 0, 0 }, &m_rectWindow);
+			if (OnUserDestroy()) {
+				// User has permitted destroy, so exit and clean up
+				delete[] m_bufScreen;
+				SetConsoleActiveScreenBuffer(m_hOriginalConsole);
+				m_cvGameFinished.notify_one();
+			}
+			else {
+				// User denied destroy for some reason, continue running
+				m_bAtomActive = true;
+			}
 		}
-
-		m_cvGameFinished.notify_one();
 	}
 
 public:
@@ -678,15 +640,13 @@ public:
 	virtual bool OnUserCreate() = 0;
 	virtual bool OnUserUpdate(float fElapsedTime) = 0;
 
-protected:
-	int m_nScreenWidth;
-	int m_nScreenHeight;
-	CHAR_INFO* m_bufScreen;
-	atomic<bool> m_bAtomActive;
-	condition_variable m_cvGameFinished;
-	mutex m_muxGame;
-	wstring m_sAppName;
+	// Opitional for clean up
+	virtual bool OnUserDestroy() {
+		return true;
+	}
 
+protected:
+	// Input Variables
 	struct sKeyState {
 		bool bPressed;
 		bool bReleased;
@@ -696,22 +656,67 @@ protected:
 	int m_mousePosX;
 	int m_mousePosY;
 
+
+public:
+	sKeyState GetKey(int nKeyID) {
+		return m_keys[nKeyID];
+	}
+	int GetMouseX() {
+		return m_mousePosX;
+	}
+	int GetMouseY() {
+		return m_mousePosY;
+	}
+	sKeyState GetMouse(int nMouseButtonID) {
+		return m_mouse[nMouseButtonID];
+	}
+	bool IsFocused() {
+		return m_bConsoleInFocus;
+	}
+
 protected:
 	int Error(const wchar_t* msg) {
 		wchar_t buf[256];
 		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 256, NULL);
 		SetConsoleActiveScreenBuffer(m_hOriginalConsole);
-		return -1;
+		wprintf(L"ERROR: %s\n\t%s\n", msg, buf);
+		return 0;
 	}
 
-private:
+	static BOOL CloseHandler(DWORD evt) {
+		// Note this gets called in a seperate OS thread, so it must
+		// only exit when the game has finished cleaning up, or else
+		// the rpocess will be killed before OnUserDestroy() has finished
+		if (evt == CTRL_CLOSE_EVENT) {
+			m_bAtomActive = false;
+
+			// Wait for thread to be exited
+			unique_lock<mutex> ul(m_muxGame);
+			m_cvGameFinished.wait(ul);
+		}
+		return true;
+	}
+
+protected:
+	int m_nScreenWidth;
+	int m_nScreenHeight;
+	CHAR_INFO* m_bufScreen;
+	wstring m_sAppName;
 	HANDLE m_hOriginalConsole;
 	CONSOLE_SCREEN_BUFFER_INFO m_OriginalConsoleInfo;
 	HANDLE m_hConsole;
 	HANDLE m_hConsoleIn;
 	SMALL_RECT m_rectWindow;
-	short* m_keyOldState;
-	short* m_keyNewState;
-	bool m_mouseOldState[5];
-	bool m_mouseNewState[5];
+	short m_keyOldState[256] = { 0 };
+	short m_keyNewState[256] = { 0 };
+	bool m_mouseOldState[5] = { 0 };
+	bool m_mouseNewState[5] = { 0 };
+	bool m_bConsoleInFocus = true;
+	static atomic<bool> m_bAtomActive;
+	static condition_variable m_cvGameFinished;
+	static mutex m_muxGame;
 };
+
+atomic<bool> ConsoleTemplateEngine::m_bAtomActive = false;
+condition_variable ConsoleTemplateEngine::m_cvGameFinished;
+mutex ConsoleTemplateEngine::m_muxGame;
